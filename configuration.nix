@@ -494,6 +494,7 @@ SSHEOF
     sudo nixos-rebuild switch --flake "${flakeUrl}" --refresh
     printf '\e[33mUpdating sourcelib library...\e[0m\n'
     ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib pull
+    sudo nix-collect-garbage -d &>/dev/null
   '';
 
   # VS Code workspace config generator
