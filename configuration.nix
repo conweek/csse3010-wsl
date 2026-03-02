@@ -493,8 +493,7 @@ SSHEOF
     printf '\e[33mUpdating CSSE3010 system configuration...\e[0m\n'
     sudo nixos-rebuild switch --flake "${flakeUrl}" --refresh
     printf '\e[33mUpdating sourcelib library...\e[0m\n'
-    cd ${env:SOURCELIB_ROOT}
-    git pull
+    ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib pull
   '';
 
   # VS Code workspace config generator
