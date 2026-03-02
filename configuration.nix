@@ -2,7 +2,7 @@
 
 let
   username = "student";
-  flakeUrl = "github:OWNER/REPO#csse3010-wsl";
+  flakeUrl = "github:conweek/csse3010-wsl/main#csse3010-wsl";
 
   # SSH Key Generation bash script (RUNS AT BOOT UP BUT ENDS EARLY IF ALREADY EXECUTED)
   generateSshKeysScript = pkgs.writeShellScript "csse3010-generate-ssh-keys" ''
@@ -375,13 +375,14 @@ SSHEOF
 
   vscodeSettingsJson = pkgs.writeText "vscode-settings.json" ''
     {
-        # Reroute JLinkGDBServer to JLinkGDBServerCL
+        // Reroute JLinkGDBServer to JLinkGDBServerCL
         "cortex-debug.JLinkGDBServerPath.linux": "JLinkGDBServerCL",
 
         "editor.rulers": [79],
         "editor.renderWhitespace": "all",
         "editor.tabSize": 4,
-        "editor.insertSpaces": true,
+        "editor.insertSpaces": true
+    }
   '';
 
   vscodeCCppPropertiesJson = pkgs.writeText "vscode-c_cpp_properties.json" ''
