@@ -491,11 +491,11 @@ SSHEOF
   updateScript = pkgs.writeShellScriptBin "update" ''
     set -euo pipefail
     printf '\e[33mUpdating CSSE3010 system configuration...\e[0m\n'
-    sudo nixos-rebuild switch --flake "${flakeUrl}"
+    sudo nixos-rebuild switch --flake "${flakeUrl}" --refresh
   '';
 
   # VS Code workspace config generator
-  vscodeSetupScript = pkgs.writeShellScriptBin "vscode-setup" ''
+  vscodeSetupScript = pkgs.writeShellScriptBin "vs-init" ''
     set -euo pipefail
 
     if [ $# -eq 0 ]; then
