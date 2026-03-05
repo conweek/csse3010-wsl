@@ -763,7 +763,7 @@ in
   systemd.user.services.csse3010-autoupdate = {
     description = "Auto-update and sourcelib reset";
     after = [ "network-online.target" ];
-    path = [  pkgs.nix pkgs.git ];
+    path = [  pkgs.nix pkgs.git pkgs.sudo ];
     environment = {
       HOME = "/home/${username}";
     };
