@@ -562,7 +562,7 @@ SSHEOF
     clangdInit = pkgs.writeShellScriptBin "clangd-init" ''
         set -euo pipefail
 
-        cp ${clangdInit} "/home/${username}/csse3010/.clangd"
+        cp ${clangdFile} "/home/${username}/csse3010/.clangd"
     '';
 in
 {
@@ -768,6 +768,7 @@ in
         ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib reset --hard origin/main
         nix-collect-garbage -d || true
       '';
+      RemainAfterExit = true;
     };
   };
 
