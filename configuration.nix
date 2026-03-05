@@ -309,7 +309,7 @@ SSHEOF
 
       # Run GDB and connect it to the JLinkGDB server automatically
       # This should be able to take in an argument or none, if none, just assumes the elf is in the current directory
-      if ["$#" -ne "1"]; then
+      if [ "$#" -ge "1"]; then
         arm-none-eabi-gdb "$1" -ex "target remote localhost:2331" -ex "monitor reset halt" -ex "load"; 
       else 
         arm-none-eabi-gdb main.elf -ex "target remote localhost:2331" -ex "monitor reset halt" -ex "load"; 
@@ -575,12 +575,19 @@ in
   #  Auto-update from remote  #
   #############################
 
- # system.autoUpgrade = {
- #   enable = true;
- #   flake = flakeUrl;
- #   dates = "daily";
- #   allowReboot = false;
- # };
+  system.autoUpgrade = {
+    enable = true;
+    flake = flakeUrl;
+    dates = "daily";
+    allowReboot = false;
+  };
+
+  # Garbage collector deleting old generations daily
+  nix.gc = {
+    automatic = true; 
+    dates = "daily";
+    options = "--delete-old";
+  };
 
   #################################
   #   WSL Specific Properties!!   #
@@ -710,12 +717,21 @@ in
     fi
     export PATH="$HOME/.local/bin:$PATH"
     export LD_LIBRARY_PATH="${pkgs.segger-jlink}/bin''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+    LOCAL=$(${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib rev-parse HEAD)
+    REMOTE=$(${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib rev-parse origin/main)
+
+    # Reset sourcelib if it's been tampered with...
+    # Putting in here since loginShell is weird in WSL
+    # This check *should* prevent large spam git requests/downloads
+    if [ -n "$LOCAL" ] && [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
+      (
+        ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib fetch --all &>/dev/null
+        ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib reset --hard origin/main &>/dev/null
+      ) &
+    fi
   '';
 
-    # Start the auto updater service when login reached
-    environment.loginShellInit = ''
-      systemctl --user start csse3010-autoupdate.service &>/dev/null &
-    '';
 
   ###########################
   #       User Groups       #
@@ -760,27 +776,6 @@ in
     unitConfig.ConditionPathExists = "!/home/${username}/.ssh/id_ed25519";
   };
   
-  systemd.user.services.csse3010-autoupdate = {
-    description = "Auto-update and sourcelib reset";
-    after = [ "network-online.target" ];
-    path = [  pkgs.nix pkgs.git pkgs.sudo ];
-    environment = {
-      HOME = "/home/${username}";
-    };
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = pkgs.writeShellScript "csse3010-autoupdate" ''
-        set -euo pipefail
-        sudo nixos-rebuild switch --flake "${flakeUrl}" --refresh || true
-        ${pkgs.git}/bin/git config --global --add safe.directory /home/${username}/csse3010/sourcelib
-        ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib fetch --all
-        ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib reset --hard origin/main
-        sudo nix-collect-garbage -d || true
-      '';
-      RemainAfterExit = true;
-    };
-  };
-
   systemd.services.csse3010-setup-repo = {
     description = "Clone CSSE3010 sourcelib repository";
     wantedBy = [ "multi-user.target" ];
