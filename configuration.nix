@@ -309,7 +309,7 @@ SSHEOF
 
       # Run GDB and connect it to the JLinkGDB server automatically
       # This should be able to take in an argument or none, if none, just assumes the elf is in the current directory
-      if [ "$#" -ge "1"]; then
+      if [ "$#" -ge 1]; then
         arm-none-eabi-gdb "$1" -ex "target remote localhost:2331" -ex "monitor reset halt" -ex "load"; 
       else 
         arm-none-eabi-gdb main.elf -ex "target remote localhost:2331" -ex "monitor reset halt" -ex "load"; 
@@ -718,14 +718,18 @@ in
     export PATH="$HOME/.local/bin:$PATH"
     export LD_LIBRARY_PATH="${pkgs.segger-jlink}/bin''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-    ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib fetch --all &>/dev/null
-    LOCAL=$(${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib rev-parse HEAD)
-    REMOTE=$(${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib rev-parse origin/main)
+    if [ -d "/home/${username}/csse3010/sourcelib/.git" ]; then
+      (
+        ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib fetch --all &>/dev/null || exit 0
+        LOCAL=$(${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib rev-parse HEAD 2>/dev/null)
+        REMOTE=$(${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib rev-parse origin/main 2>/dev/null)
+        DIRTY=$(${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib status --porcelain 2>/dev/null)
 
-    # Reset sourcelib if it's been tampered with...
-    # Putting in here since loginShell is weird in WSL
-    if [ -n "$LOCAL" ] && [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
-        ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib reset --hard origin/main &>/dev/null
+        if [ -n "$DIRTY" ] || [ "$LOCAL" != "$REMOTE" ]; then
+          ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib reset --hard origin/main &>/dev/null
+          ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib clean -fd &>/dev/null
+        fi
+      ) &
     fi
   '';
 
