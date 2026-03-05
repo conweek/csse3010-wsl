@@ -271,7 +271,7 @@ SSHEOF
 
     mkdir -p "/home/${username}/csse3010"
 
-    # Retry loop — WSL networking may take a moment on first boot
+    # Retry loop - WSL networking may take a moment on first boot
     MAX_RETRIES=10
     for i in $(seq 1 $MAX_RETRIES); do
       if ${pkgs.git}/bin/git clone \
@@ -385,6 +385,7 @@ SSHEOF
     }
   '';
 
+  # TODO: Will compilerPath actually work..?
   vscodeCCppPropertiesJson = pkgs.writeText "vscode-c_cpp_properties.json" ''
     {
         "configurations": [
@@ -399,15 +400,11 @@ SSHEOF
                     "''${env:SOURCELIB_ROOT}/components/os/FreeRTOS/include/**",
                     "''${env:SOURCELIB_ROOT}/components/os/FreeRTOS/portable/GCC/ARM_CM4F"
                 ],
-                "cStandard": "c99",
+        "cStandard": "c99",
+		"intelliSenseMode": "gcc-arm",
                 "defines": [
                     // Define the flag for the microprocessor we're using.
                     "STM32F429xx",
-
-                    // Windows does not have system compilers and headers, so we
-                    // must not let the compiler's stdint.h include the system
-                    // header.
-                    "__STDC_HOSTED__=0",
 
                     // Define the integer types and ranges given that we're not
                     // using the system standard integer header. These may not be
@@ -487,6 +484,45 @@ SSHEOF
     }
   '';
 
+  # TODO: Update the arm-none-eabi version in this - its probably wrong...
+  clangdFile = pkgs.writeText "clangdFile" ''
+    CompileFlags:
+      Compiler: arm-none-eabi-gcc
+
+      Add:
+        - -I/usr/include/newlib
+        - -I/usr/lib/gcc/arm-none-eabi/10.3.1/include
+        - -DUSE_FREERTOS_SYSTICK
+        - -I/home/${username}/csse3010/sourcelib/components/os/FreeRTOS/include
+        - -I/home/${username}/csse3010/sourcelib/components/os/FreeRTOS/portable/GCC/ARM_CM4F
+        - -I/home/${username}/csse3010/sourcelib/components/os/FreeRTOS-Plus/Source/FreeRTOS-Plus-CLI
+        - -DENABLE_DEBUG_UART
+        - -Wmaybe-uninitialized
+        - -Wextra
+        - -std=gnu99
+        - -Wsign-compare
+        - -mlittle-endian
+        - -mthumb
+        - -mcpu=cortex-m4
+        - -I/home/${username}/csse3010/sourcelib/components/hal/stm32/STM32_USB_Device_Library/Core/Inc
+        - -I/home/${username}/csse3010/sourcelib/components/hal/stm32/STM32_USB_Device_Library/Class/CDC/Inc
+        - -I/home/${username}/csse3010/sourcelib/components/boards/nucleo-f429zi/usb/vcp
+        - -I/home/${username}/csse3010/sourcelib/components/boards/nucleo-f429zi/usb/hid
+        - -I/home/${username}/csse3010/sourcelib/components/boards/nucleo-f429zi/usb
+        - -I.
+        - -I/home/${username}/csse3010/sourcelib/components/hal/stm32/STM32_USB_Device_Library/Class/HID/Inc
+        - -I/home/${username}/csse3010/sourcelib/components/hal/CMSIS/Include
+        - -I/home/${username}/csse3010/sourcelib/components/boards/nucleo-f429zi/Inc
+        - -I/home/${username}/csse3010/sourcelib/components/hal/STM32F4xx_HAL_Driver/Inc
+        - -I/home/${username}/csse3010/sourcelib/components/util
+        - -DSTM32F429xx
+        - -I/home/${username}/csse3010/repo/mylib
+        - -I/home/${username}/csse3010/sourcelib/components/peripherals/nrf24l01plus
+
+      Remove:
+        - -mthumb-interwork 
+  '';
+
   # Manual system update helper
   updateScript = pkgs.writeShellScriptBin "update" ''
     set -euo pipefail
@@ -494,6 +530,19 @@ SSHEOF
     sudo nixos-rebuild switch --flake "${flakeUrl}" --refresh
     printf '\e[33mUpdating sourcelib library...\e[0m\n'
     ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib pull
+    sudo nix-collect-garbage -d &>/dev/null
+  '';
+
+  autoUpdateScript = pkgs.writeShellScript "autoupdate" ''
+    set -euo pipefail
+
+    # Rebuild the system from the flake online
+    sudo nixos-rebuild switch --flake "${flakeUrl}" --refresh
+   
+    cd /home/${username}/csse3010/sourcelib
+    ${pkgs.git} fetch --all && ${pkgs.git} reset --hard origin/main
+
+    # Collect garbage from previous generations
     sudo nix-collect-garbage -d &>/dev/null
   '';
 
@@ -523,6 +572,11 @@ SSHEOF
     done
   '';
 
+    clangdInit = pkgs.writeShellScriptBin "clangd-init" ''
+        set -euo pipefail
+
+        cp ${clang-tools} "/home/${username}/csse3010/.clangd"
+    '';
 in
 {
   ###################################
@@ -605,6 +659,7 @@ in
     jlinkDebuggerScript
     vscodeSetupScript
     updateScript
+    clangdInit
 
     # Runs every time user logs in
     motdScript
@@ -691,7 +746,7 @@ in
     # SEGGER J-Link
     SUBSYSTEM=="usb", ATTR{idVendor}=="1366", MODE="0666", GROUP="plugdev"
 
-    # ST-Link V2 and V2-1
+    # ST-Link v2 and v2.1
     SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="3748", MODE="0666", GROUP="plugdev"
     SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="374b", MODE="0666", GROUP="plugdev"
   '';
@@ -710,6 +765,18 @@ in
       RemainAfterExit = true;
     };
     unitConfig.ConditionPathExists = "!/home/${username}/.ssh/id_ed25519";
+  };
+
+  # Auto-update the system from the remote repo + fix sourcelib
+  systemd.services.updater = {
+    description = "Auto update script";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "local-fs.target" "network-online.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = autoUpdateScript;
+      RemainAfterExit = true;
+    };
   };
 
   systemd.services.csse3010-setup-repo = {
