@@ -709,16 +709,6 @@ in
     fi
     export PATH="$HOME/.local/bin:$PATH"
     export LD_LIBRARY_PATH="${pkgs.segger-jlink}/bin''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
-    # Lets rebuild their system from the remote in case there is updates
-    (sudo nixos-rebuild switch --flake "${flakeUrl}" --refresh &>/dev/null &)
-
-    # Reset the user's local sourcelib in case changes were made
-    ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib fetch --all &>/dev/null
-    ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib reset --hard origin/main &>/dev/null
-
-    # Clean up the garbage from previous generations
-    sudo nix-collect-garbage -d &>/dev/null
   '';
 
   ###########################
@@ -762,6 +752,23 @@ in
       RemainAfterExit = true;
     };
     unitConfig.ConditionPathExists = "!/home/${username}/.ssh/id_ed25519";
+  };
+  
+  systemd.services.csse3010-autoupdate = {
+    description = "Auto-update and sourcelib reset";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = pkgs.writeShellScript "csse3010-autoupdate" ''
+        set -euo pipefail
+        nixos-rebuild switch --flake "${flakeUrl}" --refresh || true
+        ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib fetch --all
+        ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib reset --hard origin/main
+        nix-collect-garbage -d || true
+      '';
+    };
   };
 
   systemd.services.csse3010-setup-repo = {
