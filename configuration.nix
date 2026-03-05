@@ -764,6 +764,7 @@ in
       ExecStart = pkgs.writeShellScript "csse3010-autoupdate" ''
         set -euo pipefail
         nixos-rebuild switch --flake "${flakeUrl}" --refresh || true
+        ${pkgs.git}/bin/git config --global --add safe.directory /home/${username}/csse3010/sourcelib
         ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib fetch --all
         ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib reset --hard origin/main
         nix-collect-garbage -d || true
