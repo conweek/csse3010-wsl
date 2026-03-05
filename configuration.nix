@@ -562,7 +562,7 @@ SSHEOF
     clangdInit = pkgs.writeShellScriptBin "clangd-init" ''
         set -euo pipefail
 
-        cp ${pkgs.clang-tools} "/home/${username}/csse3010/.clangd"
+        cp ${clangdInit} "/home/${username}/csse3010/.clangd"
     '';
 in
 {
