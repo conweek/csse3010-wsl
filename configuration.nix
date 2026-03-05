@@ -698,11 +698,12 @@ in
   #  Environment Variables  #
   ###########################
 
+  # Set up sourcelib root since makefiles need it
   environment.sessionVariables = {
     SOURCELIB_ROOT = "/home/${username}/csse3010/sourcelib";
   };
 
-  # PATH & LD_LIBRARY_PATH additions that the sourcelib shellHook sets.
+  # Set paths that Sourcelib needs 
   environment.shellInit = ''
     if [ -d "$HOME/csse3010/sourcelib/tools" ]; then
       export PATH="$HOME/csse3010/sourcelib/tools:$PATH"
@@ -710,6 +711,11 @@ in
     export PATH="$HOME/.local/bin:$PATH"
     export LD_LIBRARY_PATH="${pkgs.segger-jlink}/bin''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   '';
+
+    # Start the auto updater service when login reached
+    environment.loginShellInit = ''
+      systemctl --user start csse3010-autoupdate.service &>/dev/null &
+    '';
 
   ###########################
   #       User Groups       #
@@ -756,9 +762,7 @@ in
   
   systemd.user.services.csse3010-autoupdate = {
     description = "Auto-update and sourcelib reset";
-    wantedBy = [ "multi-user.target" ];
     after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
     path = [  pkgs.nix pkgs.git ];
     environment = {
       HOME = "/home/${username}";
