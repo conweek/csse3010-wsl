@@ -718,17 +718,14 @@ in
     export PATH="$HOME/.local/bin:$PATH"
     export LD_LIBRARY_PATH="${pkgs.segger-jlink}/bin''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
+    ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib fetch --all &>/dev/null
     LOCAL=$(${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib rev-parse HEAD)
     REMOTE=$(${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib rev-parse origin/main)
 
     # Reset sourcelib if it's been tampered with...
     # Putting in here since loginShell is weird in WSL
-    # This check *should* prevent large spam git requests/downloads
     if [ -n "$LOCAL" ] && [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
-      (
-        ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib fetch --all &>/dev/null
         ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib reset --hard origin/main &>/dev/null
-      ) &
     fi
   '';
 
