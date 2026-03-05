@@ -491,7 +491,7 @@ SSHEOF
 
       Add:
         - -I/usr/include/newlib
-        - -I/usr/lib/gcc/arm-none-eabi/10.3.1/include
+        - -I${pkgs.gcc-arm-embedded}/arm-none-eabi/include
         - -DUSE_FREERTOS_SYSTICK
         - -I/home/${username}/csse3010/sourcelib/components/os/FreeRTOS/include
         - -I/home/${username}/csse3010/sourcelib/components/os/FreeRTOS/portable/GCC/ARM_CM4F
@@ -575,7 +575,7 @@ SSHEOF
     clangdInit = pkgs.writeShellScriptBin "clangd-init" ''
         set -euo pipefail
 
-        cp ${clang-tools} "/home/${username}/csse3010/.clangd"
+        cp ${pkgs.clang-tools} "/home/${username}/csse3010/.clangd"
     '';
 in
 {
