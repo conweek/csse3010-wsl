@@ -533,19 +533,6 @@ SSHEOF
     sudo nix-collect-garbage -d &>/dev/null
   '';
 
-  autoUpdateScript = pkgs.writeShellScript "autoupdate" ''
-    set -euo pipefail
-
-    # Rebuild the system from the flake online
-    sudo nixos-rebuild switch --flake "${flakeUrl}" --refresh
-   
-    cd /home/${username}/csse3010/sourcelib
-    ${pkgs.git} fetch --all && ${pkgs.git} reset --hard origin/main
-
-    # Collect garbage from previous generations
-    sudo nix-collect-garbage -d &>/dev/null
-  '';
-
   # VS Code workspace config generator
   vscodeSetupScript = pkgs.writeShellScriptBin "vs-init" ''
     set -euo pipefail
@@ -722,6 +709,16 @@ in
     fi
     export PATH="$HOME/.local/bin:$PATH"
     export LD_LIBRARY_PATH="${pkgs.segger-jlink}/bin''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+    # Lets rebuild their system from the remote in case there is updates
+    (sudo nixos-rebuild switch --flake "${flakeUrl}" --refresh &>/dev/null &)
+
+    # Reset the user's local sourcelib in case changes were made
+    ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib fetch --all &>/dev/null
+    ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib reset --hard origin/main &>/dev/null
+
+    # Clean up the garbage from previous generations
+    sudo nix-collect-garbage -d &>/dev/null
   '';
 
   ###########################
@@ -765,18 +762,6 @@ in
       RemainAfterExit = true;
     };
     unitConfig.ConditionPathExists = "!/home/${username}/.ssh/id_ed25519";
-  };
-
-  # Auto-update the system from the remote repo + fix sourcelib
-  systemd.services.updater = {
-    description = "Auto update script";
-    wantedBy = [ "multi-user.target" ];
-    after = [ "local-fs.target" "network-online.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = autoUpdateScript;
-      RemainAfterExit = true;
-    };
   };
 
   systemd.services.csse3010-setup-repo = {
