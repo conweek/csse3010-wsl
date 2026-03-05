@@ -729,7 +729,7 @@ in
           ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib reset --hard origin/main &>/dev/null
           ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib clean -fd &>/dev/null
         fi
-      ) &
+      ) & disown
     fi
   '';
 
