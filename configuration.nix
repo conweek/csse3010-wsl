@@ -754,24 +754,24 @@ in
     unitConfig.ConditionPathExists = "!/home/${username}/.ssh/id_ed25519";
   };
   
-  systemd.services.csse3010-autoupdate = {
+  systemd.user.services.csse3010-autoupdate = {
     description = "Auto-update and sourcelib reset";
     wantedBy = [ "multi-user.target" ];
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
-    path = [ pkgs.nixos-rebuild pkgs.nix pkgs.git ];
+    path = [  pkgs.nix pkgs.git ];
     environment = {
-      HOME = "/root";
+      HOME = "/home/${username}";
     };
     serviceConfig = {
       Type = "oneshot";
       ExecStart = pkgs.writeShellScript "csse3010-autoupdate" ''
         set -euo pipefail
-        nixos-rebuild switch --flake "${flakeUrl}" --refresh || true
+        sudo nixos-rebuild switch --flake "${flakeUrl}" --refresh || true
         ${pkgs.git}/bin/git config --global --add safe.directory /home/${username}/csse3010/sourcelib
         ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib fetch --all
         ${pkgs.git}/bin/git -C /home/${username}/csse3010/sourcelib reset --hard origin/main
-        nix-collect-garbage -d || true
+        sudo nix-collect-garbage -d || true
       '';
       RemainAfterExit = true;
     };
